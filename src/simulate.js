@@ -36,13 +36,11 @@ module.exports = function (args) {
     var platform = args.platform;
     var target = args.target;
 
-    return prepare(platform).then(function () {
-        return cordovaServe.servePlatform(platform, {
-            noServerInfo: true,
-            urlPathHandler: simServer.handleUrlPath,
-            streamHandler: simServer.streamFile,
-            serverExtender: simServer.init
-        });
+    return cordovaServe.servePlatform(platform, {
+        noServerInfo: true,
+        urlPathHandler: simServer.handleUrlPath,
+        streamHandler: simServer.streamFile,
+        serverExtender: simServer.init
     }).then(function (serverInfo) {
         server = serverInfo.server;
         var projectRoot = serverInfo.projectRoot;
@@ -52,10 +50,6 @@ module.exports = function (args) {
         simHostUrl = urlRoot + 'simulator/index.html';
         log.log('Server started:\n- App running at: ' + appUrl + '\n- Sim host running at: ' + simHostUrl);
         return plugins.initPlugins(platform, projectRoot, serverInfo.platformRoot);
-    }).then(function (pluginsChanged) {
-        return simFiles.createSimHostJsFile(pluginsChanged);
-    }).then(function (pluginsChanged) {
-        return simFiles.createAppHostJsFile(pluginsChanged);
     }).then(function () {
         return cordovaServe.launchBrowser({target: target, url: appUrl});
     }).then(function () {
@@ -66,21 +60,6 @@ module.exports = function (args) {
         log.error(error.stack || error.toString());
     });
 };
-
-function prepare(platform) {
-    var d = Q.defer();
-
-    log.log('Preparing platform \'' + platform + '\'.');
-    exec('cordova prepare ' + platform, function (err, stdout, stderr) {
-        if (err) {
-            d.reject(stderr || err);
-        } else {
-            d.resolve();
-        }
-    });
-
-    return d.promise;
-}
 
 function parseStartPage(projectRoot) {
     // Start Page is defined as <content src="some_uri" /> in config.xml

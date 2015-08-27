@@ -1,5 +1,3 @@
-var cordova = require('cordova');
-
 var socket;
 
 module.exports.initialize = function (pluginHandlers) {

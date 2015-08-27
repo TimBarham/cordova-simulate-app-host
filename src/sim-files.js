@@ -58,6 +58,10 @@ function createAppHostJsFile(pluginsChanged) {
 }
 
 function createHostJsFile(hostType, scriptTypes, pluginsChanged) {
+    if (!simulationFilePath) {
+        throw new Error('SimFiles.initialize() must be called before creating sim JS files.');
+    }
+
     var d = Q.defer();
 
     var hostBaseName = hostType.toLowerCase();
@@ -218,6 +222,9 @@ module.exports.getPluginSimulationFiles = function () {
     return PLUGIN_SIMULATION_FILES;
 };
 module.exports.getSimulationFilePath = function () {
+    if (!simulationFilePath) {
+        throw new Error('SimFiles.initialize() must be called before requesting simulationFilePath.');
+    }
     return simulationFilePath;
 };
 module.exports.getHostJsFile = function (hostType) {

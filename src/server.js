@@ -23,7 +23,8 @@ var fs = require('fs'),
     cordovaServe = require('cordova-serve'),
     plugins = require('./plugins'),
     simFiles = require('./sim-files'),
-    log = require('./log');
+    log = require('./log'),
+    prepare = require('./prepare');
 
 var SIM_HOST_PANELS_HTML = 'sim-host-panels.html';
 var SIM_HOST_DIALOGS_HTML = 'sim-host-dialogs.html';
@@ -167,41 +168,54 @@ function getFileToServe(urlPath) {
 }
 
 function streamFile(filePath, request, response) {
-    if (request.url === '/simulator/index.html' || request.url === '/simulator/sim-host.html') {
-        streamSimHostHtml(filePath, request, response);
-        return true;
-    }
-
-    // Checking if request url ends with .html (5 is the length of '.html') or request url is '/'
-    // to inject plugin simulation app-host <script> references into any html page inside the app
-    if (request.url === '/' || request.url.indexOf('.html', request.url.length - 5) !== -1) {
-        // Inject plugin simulation app-host <script> references into *.html
-        log.log('Injecting app-host into ' + filePath);
-        var scriptSources = [
-            'https://cdn.socket.io/socket.io-1.2.0.js',
-            '/simulator/app-host/app-host.js'
-        ];
-        var scriptTags = scriptSources.map(function (scriptSource) {
-            return '<script src="' + scriptSource + '"></script>';
-        }).join('');
-
-        // Note we replace "default-src 'self'" with "default-src 'self' ws:" (in Content Security Policy) so that
-        // websocket connections are allowed.
-        cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
-            .pipe(replaceStream(/<\s*head\s*>/, '<head>' + scriptTags))
-            .pipe(replaceStream('default-src \'self\'', 'default-src \'self\' ws:')), true);
-        return true;
-    }
-
-    if (request.url === '/simulator/sim-host.css') {
-        // If target browser isn't Chrome (user agent contains 'Chrome', but isn't 'Edge'), remove shadow dom stuff from
-        // the CSS file.
-        var userAgent = request.headers['user-agent'];
-        var isChrome = userAgent.indexOf('Chrome') > -1 && userAgent.indexOf('Edge/') === -1;
-        if (!isChrome) {
-            streamSimHostCss(filePath, request, response);
+    if (request.url.indexOf('/simulator/') === 0) {
+        if (request.url === '/simulator/index.html' || request.url === '/simulator/sim-host.html') {
+            streamSimHostHtml(filePath, request, response);
             return true;
         }
+
+        if (request.url === '/simulator/sim-host.css') {
+            // If target browser isn't Chrome (user agent contains 'Chrome', but isn't 'Edge'), remove shadow dom stuff
+            // from the CSS file.
+            var userAgent = request.headers['user-agent'];
+            var isChrome = userAgent.indexOf('Chrome') > -1 && userAgent.indexOf('Edge/') === -1;
+            if (!isChrome) {
+                streamSimHostCss(filePath, request, response);
+                return true;
+            }
+        }
+
+        if (filePath === simFiles.getHostJsFile('APP-HOST')) {
+            // Ensure app-host.js is up-to-date before serving it
+
+        }
+
+    } else if (request.url === '/' || request.url.indexOf('.html', request.url.length - 5) !== -1) {
+        // If request url ends with .html (5 is the length of '.html') or request url is '/', inject plugin simulation
+        // app-host <script> references into any html page inside the app
+
+        // Call Cordova prepare. This is to handle first launch and refreshing the app page. Note that we will also hit
+        // this when navigating between pages in a multi-page Cordova app, but that is not a recommended thing to do
+        // anyway.
+        prepare.prepare().then(function () {
+            // Inject plugin simulation app-host <script> references into *.html
+            log.log('Injecting app-host into ' + filePath);
+            var scriptSources = [
+                'https://cdn.socket.io/socket.io-1.2.0.js',
+                '/simulator/app-host/app-host.js'
+            ];
+            var scriptTags = scriptSources.map(function (scriptSource) {
+                return '<script src="' + scriptSource + '"></script>';
+            }).join('');
+
+            // Note we replace "default-src 'self'" with "default-src 'self' ws:" (in Content Security Policy) so that
+            // websocket connections are allowed.
+            cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
+                .pipe(replaceStream(/<\s*head\s*>/, '<head>' + scriptTags))
+                .pipe(replaceStream('default-src \'self\'', 'default-src \'self\' ws:')), true);
+        });
+
+        return true;
     }
 
     cordovaServe.sendStream(filePath, request, response, null, true);
