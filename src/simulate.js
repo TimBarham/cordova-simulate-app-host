@@ -52,10 +52,10 @@ module.exports = function (args) {
         simHostUrl = urlRoot + 'simulator/index.html';
         log.log('Server started:\n- App running at: ' + appUrl + '\n- Sim host running at: ' + simHostUrl);
         return plugins.initPlugins(platform, projectRoot, serverInfo.platformRoot);
-    }).then(function (pluginsChanged) {
-        return simFiles.createSimHostJsFile(pluginsChanged);
-    }).then(function (pluginsChanged) {
-        return simFiles.createAppHostJsFile(pluginsChanged);
+    }).then(function () {
+        return simFiles.createAppHostJsFile();
+    }).then(function () {
+        return simFiles.createSimHostJsFile();
     }).then(function () {
         return cordovaServe.launchBrowser({target: target, url: appUrl});
     }).then(function () {

@@ -21,6 +21,7 @@ var fs = require('fs'),
     path = require('path'),
     replaceStream = require('replacestream'),
     cordovaServe = require('cordova-serve'),
+    Q = require('q'),
     plugins = require('./plugins'),
     simFiles = require('./sim-files'),
     log = require('./log');
@@ -109,10 +110,20 @@ function init(server) {
 }
 
 function handleUrlPath(urlPath, request, response, do302, do404, serveFile) {
-    serveFile(getFileToServe(urlPath));
+    var fileToServe = getFileToServe(urlPath);
+    if (Q.isPromise(fileToServe)) {
+        fileToServe.then(function (file) {
+            console.log('SERVING FILE AFTER PROMISE: ' + file);
+            serveFile(file);
+        });
+    } else {
+        serveFile(fileToServe);
+    }
 }
 
 function getFileToServe(urlPath) {
+    var d = Q.defer();
+
     if (urlPath.indexOf('/node_modules/') === 0) {
         // Something in our node_modules...
         return path.resolve(__dirname, '..', urlPath.substr(1));
@@ -135,7 +146,10 @@ function getFileToServe(urlPath) {
             if (!appHostJsFile) {
                 throw new Error('Path to app-host js file has not been set.');
             }
-            return appHostJsFile;
+
+            return simFiles.createAppHostJsFile().then(function () {
+                return appHostJsFile;
+            });
         }
         return path.join(__dirname, splitPath.join('/'));
     }
@@ -156,7 +170,10 @@ function getFileToServe(urlPath) {
         if (!simHostJsFile) {
             throw new Error('Path to sim-host js file has not been set.');
         }
-        return simHostJsFile;
+
+        return simFiles.createSimHostJsFile().then(function () {
+            return simHostJsFile;
+        });
     }
 
     if (filePath === 'index.html') {

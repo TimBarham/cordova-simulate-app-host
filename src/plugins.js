@@ -18,8 +18,9 @@
  */
 
 var fs = require('fs'),
-    path = require('path'),
-    simFiles = require('./sim-files');
+    path = require('path');
+
+var pluginSimulationFiles = require('./plugin-files');
 
 var plugins = {};
 
@@ -50,7 +51,7 @@ function initPlugins(platform, projectRoot, platformRoot) {
     addPlatformDefaultHandlers(platform);
 
     // Check if the plugin list has changed
-    return refreshCache(path.join(simFiles.getSimulationFilePath(), 'plugins.json'), plugins);
+    //return refreshCache(path.join(simFiles.getSimulationFilePath(), 'plugins.json'), plugins);
 }
 
 /**
@@ -74,9 +75,8 @@ function findPluginPath(projectRoot, pluginId, hostType) {
     if (!hostType) {
         return findPluginPath(projectRoot, pluginId, 'SIM-HOST') || findPluginPath(projectRoot, pluginId, 'APP-HOST');
     }
-    var pluginSimulationFile = simFiles.getPluginSimulationFiles();
-    for (var file in pluginSimulationFile[hostType]) {
-        var pluginFilePath = findPluginSourceFilePath(projectRoot, pluginId, pluginSimulationFile[hostType][file]);
+    for (var file in pluginSimulationFiles[hostType]) {
+        var pluginFilePath = findPluginSourceFilePath(projectRoot, pluginId, pluginSimulationFiles[hostType][file]);
         if (pluginFilePath) {
             return pluginFilePath;
         }
