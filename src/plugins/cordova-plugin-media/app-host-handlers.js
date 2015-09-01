@@ -22,8 +22,7 @@
 // https://github.com/apache/cordova-plugin-media/
 
 var utils = require('utils'),
-    argscheck = require('argscheck'),
-    MediaError = require('./MediaError');
+    argscheck = require('argscheck');
 
 var mediaObjects = {};
 
@@ -55,7 +54,7 @@ var Media = function (src, successCallback, errorCallback, statusCallback) {
     try {
         this.node = createNode(this);
     } catch (err) {
-        Media.onStatus(this.id, Media.MEDIA_ERROR, { code: MediaError.MEDIA_ERR_ABORTED });
+        Media.onStatus(this.id, Media.MEDIA_ERROR, { code: window.MediaError.MEDIA_ERR_ABORTED });
     }
 };
 
@@ -81,8 +80,8 @@ function createNode(media) {
 
     node.onerror = function (e) {
         // Due to media.spec.15 It should return MediaError for bad filename
-        var err = e.target.error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ?
-            { code: MediaError.MEDIA_ERR_ABORTED } :
+        var err = e.target.error.code === window.MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ?
+            { code: window.MediaError.MEDIA_ERR_ABORTED } :
             e.target.error;
 
         Media.onStatus(media.id, Media.MEDIA_ERROR, err);
@@ -122,7 +121,7 @@ Media.prototype.play = function () {
         try {
             this.node = createNode(this);
         } catch (err) {
-            Media.onStatus(this.id, Media.MEDIA_ERROR, { code: MediaError.MEDIA_ERR_ABORTED });
+            Media.onStatus(this.id, Media.MEDIA_ERROR, { code: window.MediaError.MEDIA_ERR_ABORTED });
         }
     }
 
@@ -222,6 +221,13 @@ Media.prototype.setVolume = function (volume) {
 };
 
 /**
+ * Sets playback rate.
+ */
+Media.prototype.setRate = function () {
+    throw new Error('Not implemented');
+};
+
+/**
  * Audio has status update.
  * PRIVATE
  *
@@ -258,8 +264,20 @@ Media.onStatus = function (id, msgType, value) {
     }
 };
 
-module.exports = function () {
-    document.addEventListener("deviceready", function () {
-        window.Media = Media;
-    }, false);
+document.addEventListener("deviceready", function () {
+    window.Media = Media;
+}, false);
+
+module.exports = function (messages) {
+
+    function emptyHandler() {}
+
+    return {
+        'Media': {
+            // Despite we fully override Media object on client side
+            // there is still one exec call below which is invoked during 
+            // platform proxy initialization on android and windowsphone
+            'messageChannel': emptyHandler
+        }
+    };
 };

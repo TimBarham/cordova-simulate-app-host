@@ -198,8 +198,23 @@ function _getLocalFilesystemPathHandler(successCallback, errorCallback, module, 
     successCallback(url);
 }
 
+function requestAllPathsHandler(successCallback, errorCallback, module, event, args) {
+    var pathsPrefix = {
+        // Read-only directory where the application is installed.
+        applicationDirectory: location.origin + '/',
+        // Where to put app-specific data files.
+        dataDirectory: 'filesystem:file:///persistent/',
+        // Cached files that should survive app restarts.
+        // Apps should not rely on the OS to delete files in here.
+        cacheDirectory: 'filesystem:file:///temporary/',
+    };
+
+    successCallback(pathsPrefix);
+}
+
 module.exports = {
     'File': {
-        '_getLocalFilesystemPath': _getLocalFilesystemPathHandler
+        '_getLocalFilesystemPath': _getLocalFilesystemPathHandler,
+        'requestAllPaths': requestAllPathsHandler
     }
 };

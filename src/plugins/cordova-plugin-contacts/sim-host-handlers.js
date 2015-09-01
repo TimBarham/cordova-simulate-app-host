@@ -210,15 +210,6 @@ module.exports = function (messages) {
             'chooseContact': notifyNotSupported,
             'displayContact': notifyNotSupported,
             'newContact': notifyNotSupported
-        },
-        // This handler serves for 'deviceready' event firing
-        // on Android and iOS platforms
-        // TODO: Remove this handler when File plugin simulation
-        // is implemented
-        'File': {
-            'requestAllPaths': function (success, fail, args) {
-                success();
-            }
         }
     };
 };
