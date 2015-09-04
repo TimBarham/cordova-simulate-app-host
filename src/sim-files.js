@@ -39,9 +39,15 @@ function initialize(projectRoot) {
     hostJsFiles['SIM-HOST'] = path.join(simulationFilePath, 'sim-host.js');
 }
 
+function loadJsonFile(file) {
+    return JSON.parse(fs.readFileSync(file).toString());
+}
+
 function createSimHostJsFile() {
-    console.log('THIS REQUIRE MUST CHANGE TO A DYNAMIC LOADING OF THE FILE');
-    var appHostPlugins = require(path.join(simulationFilePath, 'app-host.json')).plugins;
+    //console.log('THIS REQUIRE MUST CHANGE TO A DYNAMIC LOADING OF THE FILE');
+    var appHostPlugins = loadJsonFile(path.join(simulationFilePath, 'app-host.json')).plugins; // require(path.join(simulationFilePath, 'app-host.json')).plugins;
+    console.log('appHostPlugins:');
+    console.log(appHostPlugins);
     return createHostJsFile('SIM-HOST', ['JS', 'HANDLERS'], appHostPlugins);
 }
 
@@ -65,8 +71,9 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
     if (fs.existsSync(outputFile) && fs.existsSync(jsonFile)) {
         console.log('- BOTH JS AND JSON FILES EXIST');
         // Check plugin list in jsonFile to see if it is up-to-date
-        console.log('THIS REQUIRE MUST CHANGE TO A DYNAMIC LOADING OF THE FILE');
-        var cache = require(jsonFile);
+        // console.log('THIS REQUIRE MUST CHANGE TO A DYNAMIC LOADING OF THE FILE');
+        //var cache = require(jsonFile);
+        var cache = loadJsonFile(jsonFile);
         if (compareObjects(cache.plugins, pluginList)) {
             console.log('- CACHED PLUGINS MATCH REQUIRED LIST');
             var cachedFileInfo = cache.files;
