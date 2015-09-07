@@ -23,6 +23,7 @@ var fs = require('fs'),
     cordovaServe = require('cordova-serve'),
     Q = require('q'),
     plugins = require('./plugins'),
+    prepare = require('./prepare'),
     simFiles = require('./sim-files'),
     log = require('./log');
 
@@ -185,7 +186,9 @@ function getFileToServe(urlPath) {
 
 function streamFile(filePath, request, response) {
     if (request.url === '/simulator/index.html' || request.url === '/simulator/sim-host.html') {
-        streamSimHostHtml(filePath, request, response);
+        prepare.prepareIfRequired().then(function () {
+            streamSimHostHtml(filePath, request, response);
+        });
         return true;
     }
 
@@ -233,6 +236,10 @@ function streamSimHostHtml(filePath, request, response) {
     var dialogsHtml = [];
 
     var pluginList = plugins.getPlugins();
+
+    console.log('*** streamSimHostHtml() pluginList:');
+    console.log(pluginList);
+
     Object.keys(pluginList).forEach(function (pluginId) {
         var pluginPath = pluginList[pluginId];
         if (pluginPath) {

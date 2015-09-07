@@ -22,37 +22,63 @@ var browserify = require('browserify'),
     path = require('path'),
     Q = require('q'),
     through = require('through2'),
+    config = require('./config'),
     log = require('./log'),
-    plugins = require('./plugins');
+    plugins = require('./plugins'),
+    prepare = require('./prepare');
 
 var pluginSimulationFiles = require('./plugin-files');
 
-var simulationFilePath;
 var hostJsFiles = [];
 
-function initialize(projectRoot) {
-    simulationFilePath = path.join(projectRoot, 'simulation');
-    if (!fs.existsSync(simulationFilePath)) {
-        fs.mkdirSync(simulationFilePath);
-    }
-    hostJsFiles['APP-HOST'] = path.join(simulationFilePath, 'app-host.js');
-    hostJsFiles['SIM-HOST'] = path.join(simulationFilePath, 'sim-host.js');
-}
+var builtAppHostSinceLastServe;
 
 function loadJsonFile(file) {
     return JSON.parse(fs.readFileSync(file).toString());
 }
 
 function createSimHostJsFile() {
-    //console.log('THIS REQUIRE MUST CHANGE TO A DYNAMIC LOADING OF THE FILE');
-    var appHostPlugins = loadJsonFile(path.join(simulationFilePath, 'app-host.json')).plugins; // require(path.join(simulationFilePath, 'app-host.json')).plugins;
-    console.log('appHostPlugins:');
-    console.log(appHostPlugins);
-    return createHostJsFile('SIM-HOST', ['JS', 'HANDLERS'], appHostPlugins);
+    console.log('*** createSimHostJsFile() ***');
+    return createAppHostJsFileIfRequired().then(function (appHostPlugins) {
+            return createHostJsFile('SIM-HOST', ['JS', 'HANDLERS'], appHostPlugins);
+        }
+    );
+
+    //var appHostPlugins = loadJsonFile(path.join(simulationFilePath, 'app-host.json')).plugins; // require(path.join(simulationFilePath, 'app-host.json')).plugins;
+    //return createHostJsFile('SIM-HOST', ['JS', 'HANDLERS'], appHostPlugins);
 }
 
+function createAppHostJsFileIfRequired() {
+    console.log('*** createSimHostJsFile() builtAppHostSinceLastServe: ' + builtAppHostSinceLastServe);
+    if (builtAppHostSinceLastServe) {
+        return Q(loadJsonFile(path.join(config.simulationFilePath, 'app-host.json')).plugins);
+    } else {
+        return createAppHostJsFile();
+    }
+}
+
+var creatingAppHostJsFile;
+var appHostJsPromises = [];
 function createAppHostJsFile() {
-    return createHostJsFile('APP-HOST', ['JS', 'HANDLERS', 'CLOBBERS']);
+    if (creatingAppHostJsFile) {
+        var d = Q.defer();
+        // If we're in the middle if creating app-host.js, return a promise that will be fullfilled when it is done.
+        appHostJsPromises.push(d);
+        return d.promise;
+    }
+
+    creatingAppHostJsFile = true;
+    console.log('*** createAppHostJsFile()');
+    return prepare.prepareIfRequired().then(function () {
+        creatingAppHostJsFile = false;
+        builtAppHostSinceLastServe = true;
+        return createHostJsFile('APP-HOST', ['JS', 'HANDLERS', 'CLOBBERS']).then(function (pluginList) {
+            appHostJsPromises.forEach(function (d) {
+                d.resolve(pluginList);
+            });
+            return pluginList;
+        });
+    });
 }
 
 function createHostJsFile(hostType, scriptTypes, pluginList) {
@@ -61,7 +87,7 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
 
     var hostBaseName = hostType.toLowerCase();
     var outputFile = hostJsFiles[hostType];
-    var jsonFile = path.join(simulationFilePath, hostBaseName + '.json');
+    var jsonFile = path.join(config.simulationFilePath, hostBaseName + '.json');
 
     pluginList = pluginList || plugins.getPlugins();
 
@@ -71,8 +97,6 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
     if (fs.existsSync(outputFile) && fs.existsSync(jsonFile)) {
         console.log('- BOTH JS AND JSON FILES EXIST');
         // Check plugin list in jsonFile to see if it is up-to-date
-        // console.log('THIS REQUIRE MUST CHANGE TO A DYNAMIC LOADING OF THE FILE');
-        //var cache = require(jsonFile);
         var cache = loadJsonFile(jsonFile);
         if (compareObjects(cache.plugins, pluginList)) {
             console.log('- CACHED PLUGINS MATCH REQUIRED LIST');
@@ -92,7 +116,7 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
             console.log('- UP-TO-DATE: ' + upToDate);
             if (upToDate) {
                 log.log('Creating ' + hostBaseName + '.js: Existing file found and is up-to-date.');
-                d.resolve();
+                d.resolve(pluginList);
                 return d.promise;
             }
         }
@@ -254,13 +278,13 @@ function compareObjects(o1, o2) {
         }));
 }
 
-module.exports.initialize = initialize;
+function getHostJsFile(hostType) {
+    if (!hostJsFiles[hostType]) {
+        hostJsFiles[hostType] = path.join(config.simulationFilePath, hostType.toLowerCase() + '.js');
+    }
+    return hostJsFiles[hostType];
+}
+
 module.exports.createSimHostJsFile = createSimHostJsFile;
 module.exports.createAppHostJsFile = createAppHostJsFile;
-
-module.exports.getSimulationFilePath = function () {
-    return simulationFilePath;
-};
-module.exports.getHostJsFile = function (hostType) {
-    return hostJsFiles[hostType];
-};
+module.exports.getHostJsFile = getHostJsFile;
