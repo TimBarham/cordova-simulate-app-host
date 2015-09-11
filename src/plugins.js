@@ -30,8 +30,6 @@ function initPlugins() {
     var pluginList = ['exec', 'events'];
 
     var pluginPath = path.resolve(config.platformRoot, 'plugins');
-    console.log('fs.existsSync(' + pluginPath + '): ' + fs.existsSync(pluginPath))
-
     if (fs.existsSync(pluginPath)) {
         fs.readdirSync(pluginPath).forEach(function (file) {
             if (fs.statSync(path.join(pluginPath, file)).isDirectory()) {
@@ -44,10 +42,10 @@ function initPlugins() {
         pluginList.push('cordova-plugin-geolocation');
     }
 
-    console.log('*** PLUGINLIST ***');
-    console.log(pluginList);
-
     var projectRoot = config.projectRoot;
+
+
+    plugins = {};
     pluginList.forEach(function (pluginId) {
         var pluginFilePath = findPluginPath(projectRoot, pluginId);
         if (pluginFilePath) {

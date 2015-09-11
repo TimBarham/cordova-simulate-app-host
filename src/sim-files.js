@@ -25,68 +25,86 @@ var browserify = require('browserify'),
     config = require('./config'),
     log = require('./log'),
     plugins = require('./plugins'),
-    prepare = require('./prepare');
+    prepare = require('./prepare'),
+    simSocket = require('./socket');
 
 var pluginSimulationFiles = require('./plugin-files');
 
-var hostJsFiles = [];
-
-var builtAppHostSinceLastServe;
+var hostJsFiles = {};
+var builtOnce = {};
+var simHost = 'SIM-HOST';
+var appHost = 'APP-HOST';
 
 function loadJsonFile(file) {
     return JSON.parse(fs.readFileSync(file).toString());
 }
 
 function createSimHostJsFile() {
-    console.log('*** createSimHostJsFile() ***');
-    return createAppHostJsFileIfRequired().then(function (appHostPlugins) {
-            return createHostJsFile('SIM-HOST', ['JS', 'HANDLERS'], appHostPlugins);
-        }
-    );
-
-    //var appHostPlugins = loadJsonFile(path.join(simulationFilePath, 'app-host.json')).plugins; // require(path.join(simulationFilePath, 'app-host.json')).plugins;
-    //return createHostJsFile('SIM-HOST', ['JS', 'HANDLERS'], appHostPlugins);
+    // Don't create sim-host.js until we've created app-host.js at least once, so we know we're working with the same
+    // list of plugins.
+    return waitOnAppHostJs().then(function (appHostPlugins) {
+        return createHostJsFile(simHost, ['JS', 'HANDLERS'], appHostPlugins);
+    });
 }
 
-function createAppHostJsFileIfRequired() {
-    console.log('*** createSimHostJsFile() builtAppHostSinceLastServe: ' + builtAppHostSinceLastServe);
-    if (builtAppHostSinceLastServe) {
-        return Q(loadJsonFile(path.join(config.simulationFilePath, 'app-host.json')).plugins);
+function validateSimHostPlugins(pluginList) {
+    // App-host has been refreshed. If plugins have changed, notify sim-host that is should also refresh (but only bother
+    // doing this if we have ever created sim-host).
+    if (builtOnce[simHost] && !validatePlugins(simHost, pluginList)) {
+        simSocket.emitToHost(simHost, 'refresh');
+        simSocket.invalidateSimHost();
+    }
+}
+
+function waitOnAppHostJs() {
+    if (builtOnce[appHost]) {
+        // If we've ever built app-host, just use what we have (on a refresh of sim-host, we don't want to rebuild app-host).
+        return Q.when(loadJsonFile(path.join(config.simulationFilePath, 'app-host.json')).plugins);
     } else {
+        // Otherwise force it to build now (this is to handle the case where sim-host is requested before app-host).
         return createAppHostJsFile();
     }
 }
 
-var creatingAppHostJsFile;
-var appHostJsPromises = [];
+var appHostJsPromise;
 function createAppHostJsFile() {
-    if (creatingAppHostJsFile) {
+    if (!appHostJsPromise) {
         var d = Q.defer();
-        // If we're in the middle if creating app-host.js, return a promise that will be fullfilled when it is done.
-        appHostJsPromises.push(d);
-        return d.promise;
+        appHostJsPromise = d.promise;
+
+        prepare.waitOnPrepare().then(function () {
+            return createHostJsFile(appHost, ['JS', 'HANDLERS', 'CLOBBERS'])
+        }).then(function (pluginList) {
+            d.resolve(pluginList);
+            appHostJsPromise = null;
+        });
     }
 
-    creatingAppHostJsFile = true;
-    console.log('*** createAppHostJsFile()');
-    return prepare.prepareIfRequired().then(function () {
-        creatingAppHostJsFile = false;
-        builtAppHostSinceLastServe = true;
-        return createHostJsFile('APP-HOST', ['JS', 'HANDLERS', 'CLOBBERS']).then(function (pluginList) {
-            appHostJsPromises.forEach(function (d) {
-                d.resolve(pluginList);
-            });
-            return pluginList;
-        });
+    return appHostJsPromise;
+}
+
+function validatePlugins(hostType, pluginList) {
+    var hostBaseName = hostType.toLowerCase();
+    var jsonFile = path.join(config.simulationFilePath, hostBaseName + '.json');
+    if (!fs.existsSync(jsonFile)) {
+        return false;
+    }
+
+    var cache = loadJsonFile(jsonFile);
+    if (!compareObjects(cache.plugins, pluginList)) {
+        return false;
+    }
+
+    var cachedFileInfo = cache.files;
+    return Object.keys(cachedFileInfo).every(function (file) {
+        return fs.existsSync(file) && cachedFileInfo[file] === new Date(fs.statSync(file).mtime).getTime();
     });
 }
 
 function createHostJsFile(hostType, scriptTypes, pluginList) {
-    console.log('*** BUILDING ' + hostType + '.JS ***');
-    var d = Q.defer();
-
+    builtOnce[hostType] = true;
     var hostBaseName = hostType.toLowerCase();
-    var outputFile = hostJsFiles[hostType];
+    var outputFile = getHostJsFile(hostType);
     var jsonFile = path.join(config.simulationFilePath, hostBaseName + '.json');
 
     pluginList = pluginList || plugins.getPlugins();
@@ -94,32 +112,9 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
     // See if we already have created our output file, and it is up-to-date with all its dependencies. However, if the
     // list of plugins has changed, or the directory where a plugin's simulation definition lives has changed, we need
     // to force a refresh.
-    if (fs.existsSync(outputFile) && fs.existsSync(jsonFile)) {
-        console.log('- BOTH JS AND JSON FILES EXIST');
-        // Check plugin list in jsonFile to see if it is up-to-date
-        var cache = loadJsonFile(jsonFile);
-        if (compareObjects(cache.plugins, pluginList)) {
-            console.log('- CACHED PLUGINS MATCH REQUIRED LIST');
-            var cachedFileInfo = cache.files;
-            var upToDate = Object.keys(cachedFileInfo).every(function (file) {
-                if (!fs.existsSync(file)) {
-                    console.log('REQUIRED FILE DOES NOT EXIST: ' + file);
-                } else {
-                    if (cachedFileInfo[file] !== new Date(fs.statSync(file).mtime).getTime()) {
-                        console.log('TIME STAMPS DON\'T MATCH FOR FILE ' + file);
-                        console.log('CACHED: ' + cachedFileInfo[file]);
-                        console.log('CURRENT: ' + new Date(fs.statSync(file).mtime).getTime());
-                    }
-                }
-                return fs.existsSync(file) && cachedFileInfo[file] === new Date(fs.statSync(file).mtime).getTime();
-            });
-            console.log('- UP-TO-DATE: ' + upToDate);
-            if (upToDate) {
-                log.log('Creating ' + hostBaseName + '.js: Existing file found and is up-to-date.');
-                d.resolve(pluginList);
-                return d.promise;
-            }
-        }
+    if (fs.existsSync(outputFile) && validatePlugins(hostType, pluginList)) {
+        log.log('Creating ' + hostBaseName + '.js: Existing file found and is up-to-date.');
+        return Q.when(pluginList);
     }
 
     var filePath = path.join(__dirname, hostBaseName, hostBaseName + '.js');
@@ -177,6 +172,7 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
     });
 
     var outputFileStream = fs.createWriteStream(outputFile);
+    var d = Q.defer();
 
     outputFileStream.on('finish', function () {
         fs.writeFileSync(jsonFile, JSON.stringify({plugins: pluginList, files: fileInfo}));
@@ -198,10 +194,12 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
 
 var _browserifySearchPaths = null;
 function getBrowserifySearchPaths(hostType) {
-    _browserifySearchPaths = _browserifySearchPaths || {
-            'APP-HOST': [path.join(__dirname, 'modules', 'app-host'), path.join(__dirname, 'modules', 'common'), path.join(__dirname, 'third-party')],
-            'SIM-HOST': [path.join(__dirname, 'modules', 'sim-host'), path.join(__dirname, 'modules', 'common'), path.join(__dirname, 'third-party')],
-        };
+    if (!_browserifySearchPaths) {
+        _browserifySearchPaths = {};
+        _browserifySearchPaths[appHost] = [path.join(__dirname, 'modules', 'app-host'), path.join(__dirname, 'modules', 'common'), path.join(__dirname, 'third-party')];
+        _browserifySearchPaths[simHost] = [path.join(__dirname, 'modules', 'sim-host'), path.join(__dirname, 'modules', 'common'), path.join(__dirname, 'third-party')];
+    }
+
     return hostType ? _browserifySearchPaths[hostType] : _browserifySearchPaths;
 }
 
@@ -258,11 +256,6 @@ function compareObjects(o1, o2) {
         }
         // Simple array comparison - expects same order and only scalar values
         return o1.length === o2.length && o1.every(function (v, i) {
-                if (v !== o2[i]) {
-                    console.log('KEY: ' + i);
-                    console.log('LEFT: ' + v);
-                    console.log('RIGHT: ' + o2[i]);
-                }
                 return v === o2[i];
             });
     }
@@ -287,4 +280,5 @@ function getHostJsFile(hostType) {
 
 module.exports.createSimHostJsFile = createSimHostJsFile;
 module.exports.createAppHostJsFile = createAppHostJsFile;
+module.exports.validateSimHostPlugins = validateSimHostPlugins;
 module.exports.getHostJsFile = getHostJsFile;

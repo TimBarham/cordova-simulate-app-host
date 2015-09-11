@@ -350,7 +350,6 @@ self = module.exports = {
         }
 
         node.addEventListener('keyup', function (event) {
-            console.log('keyup');
             if (event.keyCode !== 9) {
                 clearTimeout(oldSetTimeoutId);
                 oldSetTimeoutId = window.setTimeout(function () {

@@ -24,6 +24,7 @@ var Q = require('q'),
     config = require('./config'),
     log = require('./log'),
     simServer = require('./server'),
+    simSocket = require('./socket'),
     plugins = require('./plugins');
 
 module.exports = function (args) {
@@ -41,7 +42,7 @@ module.exports = function (args) {
         noServerInfo: true,
         urlPathHandler: simServer.handleUrlPath,
         streamHandler: simServer.streamFile,
-        serverExtender: simServer.init
+        serverExtender: simSocket.init
     }).then(function (serverInfo) {
         server = serverInfo.server;
         var projectRoot = serverInfo.projectRoot;

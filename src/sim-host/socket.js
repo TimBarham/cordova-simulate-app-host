@@ -30,8 +30,6 @@ module.exports.initialize = function (pluginHandlers) {
             throw 'Exec called on simulation host without an action specified';
         }
 
-        console.log('Exec ' + service + '.' + action + ' (index: ' + index + ')');
-
         var handler = pluginHandlers[service] && pluginHandlers[service][action];
         if (!handler) {
             handler = pluginHandlers['*']['*'];
@@ -39,6 +37,10 @@ module.exports.initialize = function (pluginHandlers) {
         } else {
             handler(success, failure, data.args);
         }
+    });
+
+    socket.on('refresh', function () {
+        document.location.reload(true);
     });
 };
 

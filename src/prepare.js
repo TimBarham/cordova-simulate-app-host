@@ -23,44 +23,46 @@ var exec = require('child_process').exec,
     log = require('./log'),
     plugins = require('./plugins');
 
-var preparedSinceLastServe;
-var preparing;
+var preparedOnce;
+var preparePromise;
+var lastPlatform;
 
 function prepare() {
-    var d = Q.defer();
+    if (!preparePromise) {
+        var d = Q.defer();
+        preparePromise = d.promise;
 
-    if (preparing) {
-        preparing.push(d);
-        return d.promise;
+        var platform = config.platform;
+        log.log('Preparing platform \'' + platform + '\'.');
+
+        lastPlatform = platform;
+
+        exec('cordova prepare ' + platform, function (err, stdout, stderr) {
+            lastPlatform = null;
+            preparePromise = null;
+            if (err) {
+                d.reject(stderr || err);
+            } else {
+                preparedOnce = true;
+                plugins.initPlugins();
+                d.resolve();
+            }
+        });
+    } else {
+        if (config.platform !== lastPlatform) {
+            // Sanity check to verify we never queue prepares for different platforms
+            throw new Error('Unexpected request to prepare \'' + config.platform + '\' while prepare of \'' + lastPlatform + '\' still pending.');
+        }
     }
 
-    preparing = [d];
-    var platform = config.platform;
-
-    log.log('Preparing platform \'' + platform + '\'.');
-    exec('cordova prepare ' + platform, function (err, stdout, stderr) {
-        if (err) {
-            preparing.forEach(function (d) {
-                d.reject(stderr || err);
-            });
-            preparing = null;
-        } else {
-            log.log('Finished preparing platform \'' + platform + '\'.');
-            preparedSinceLastServe = true;
-            plugins.initPlugins();
-            preparing.forEach(function (d) {
-                d.resolve();
-            });
-            preparing = null;
-        }
-    });
-
-    return d.promise;
+    return preparePromise;
 }
 
-function prepareIfRequired() {
-    return preparedSinceLastServe? Q() : prepare();
+function waitOnPrepare() {
+    // Caller doesn't want to continue until we've prepared at least once. If we already have, return immediately,
+    // otherwise launch a prepare.
+    return preparedOnce ? Q.when() : prepare();
 }
 
 module.exports.prepare = prepare;
-module.exports.prepareIfRequired = prepareIfRequired;
+module.exports.waitOnPrepare = waitOnPrepare;
