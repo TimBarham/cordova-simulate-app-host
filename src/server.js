@@ -21,92 +21,19 @@ var fs = require('fs'),
     path = require('path'),
     replaceStream = require('replacestream'),
     cordovaServe = require('cordova-serve'),
+    Q = require('q'),
     plugins = require('./plugins'),
+    prepare = require('./prepare'),
     simFiles = require('./sim-files'),
     log = require('./log');
 
+Q.onerror = function (error) {
+    log.error(error);
+};
+Q.longStackSupport = true;
+
 var SIM_HOST_PANELS_HTML = 'sim-host-panels.html';
 var SIM_HOST_DIALOGS_HTML = 'sim-host-dialogs.html';
-
-function init(server) {
-    var io = require('socket.io')(server);
-
-    this.server = server;
-
-    var hostSockets = {};
-    var pendingEmits = {
-        'APP-HOST': [],
-        'SIM-HOST': []
-    };
-
-    io.on('connection', function (socket) {
-        socket.on('register-app-host', function () {
-            log.log('App-host registered with server.');
-
-            // It only makes sense to have one app host per server. If more than one tries to connect, always take the
-            // most recent.
-            hostSockets['APP-HOST'] = socket;
-
-            socket.on('exec', function (data) {
-                emitToHost('SIM-HOST', 'exec', data);
-            });
-
-            socket.on('plugin-message', function (data) {
-                emitToHost('SIM-HOST', 'plugin-message', data);
-            });
-
-            socket.on('plugin-method', function (data, callback) {
-                emitToHost('SIM-HOST', 'plugin-method', data, callback);
-            });
-
-            handlePendingEmits('APP-HOST');
-        });
-
-        socket.on('register-simulation-host', function () {
-            log.log('Simulation host registered with server.');
-
-            // It only makes sense to have one simulation host per server. If more than one tries to connect, always
-            // take the most recent.
-            hostSockets['SIM-HOST'] = socket;
-
-            socket.on('exec-success', function (data) {
-                emitToHost('APP-HOST', 'exec-success', data);
-            });
-            socket.on('exec-failure', function (data) {
-                emitToHost('APP-HOST', 'exec-failure', data);
-            });
-
-            socket.on('plugin-message', function (data) {
-                emitToHost('APP-HOST', 'plugin-message', data);
-            });
-
-            socket.on('plugin-method', function (data, callback) {
-                emitToHost('APP-HOST', 'plugin-method', data, callback);
-            });
-
-            handlePendingEmits('SIM-HOST');
-        });
-    });
-
-    function handlePendingEmits(host) {
-        pendingEmits[host].forEach(function (pendingEmit) {
-            log.log('Handling pending emit \'' + pendingEmit.msg + '\' to ' + host.toLowerCase());
-            emitToHost(host, pendingEmit.msg, pendingEmit.data, pendingEmit.callback);
-        });
-        pendingEmits[host] = [];
-    }
-
-    function emitToHost(host, msg, data, callback) {
-        var socket = hostSockets[host];
-        if (socket) {
-            log.log('Emitting \'' + msg + '\' to ' + host.toLowerCase());
-            socket.emit(msg, data, callback);
-        } else {
-            log.log('Emitting \'' + msg + '\' to ' + host.toLowerCase() + ' (pending connection)');
-            pendingEmits[host].push({msg: msg, data: data, callback: callback});
-        }
-    }
-}
 
 function handleUrlPath(urlPath, request, response, do302, do404, serveFile) {
     serveFile(getFileToServe(urlPath));
@@ -175,21 +102,7 @@ function streamFile(filePath, request, response) {
     // Checking if request url ends with .html (5 is the length of '.html') or request url is '/'
     // to inject plugin simulation app-host <script> references into any html page inside the app
     if (request.url === '/' || request.url.indexOf('.html', request.url.length - 5) !== -1) {
-        // Inject plugin simulation app-host <script> references into *.html
-        log.log('Injecting app-host into ' + filePath);
-        var scriptSources = [
-            'https://cdn.socket.io/socket.io-1.2.0.js',
-            '/simulator/app-host/app-host.js'
-        ];
-        var scriptTags = scriptSources.map(function (scriptSource) {
-            return '<script src="' + scriptSource + '"></script>';
-        }).join('');
-
-        // Note we replace "default-src 'self'" with "default-src 'self' ws:" (in Content Security Policy) so that
-        // websocket connections are allowed.
-        cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
-            .pipe(replaceStream(/<\s*head\s*>/, '<head>' + scriptTags))
-            .pipe(replaceStream('default-src \'self\'', 'default-src \'self\' ws:')), true);
+        streamAppHostHtml(filePath, request, response);
         return true;
     }
 
@@ -208,31 +121,66 @@ function streamFile(filePath, request, response) {
     return true;
 }
 
+function streamAppHostHtml(filePath, request, response) {
+    // Always prepare before serving up app HTML file, so app is up-to-date, then create the app-host.js (if it is
+    // out-of-date) so it is ready when it is requested.
+    prepare.prepare().then(function () {
+        return simFiles.createAppHostJsFile();
+    }).then(function (pluginList) {
+        // Sim host will need to be refreshed if the plugin list has changed.
+        simFiles.validateSimHostPlugins(pluginList);
+
+        // Inject plugin simulation app-host <script> references into *.html
+        log.log('Injecting app-host into ' + filePath);
+        var scriptSources = [
+            'https://cdn.socket.io/socket.io-1.2.0.js',
+            '/simulator/app-host/app-host.js'
+        ];
+        var scriptTags = scriptSources.map(function (scriptSource) {
+            return '<script src="' + scriptSource + '"></script>';
+        }).join('');
+
+        // Note we replace "default-src 'self'" with "default-src 'self' ws:" (in Content Security Policy) so that
+        // websocket connections are allowed.
+        cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
+            .pipe(replaceStream(/<\s*head\s*>/, '<head>' + scriptTags))
+            .pipe(replaceStream('default-src \'self\'', 'default-src \'self\' ws: blob:')), true);
+    }).done();
+}
+
 function streamSimHostHtml(filePath, request, response) {
-    // Inject references to simulation HTML files
-    var panelsHtmlBasename = SIM_HOST_PANELS_HTML;
-    var dialogsHtmlBasename = SIM_HOST_DIALOGS_HTML;
-    var panelsHtml = [];
-    var dialogsHtml = [];
+    // If we haven't ever prepared, do so before we try to generate sim-host, so we know our list of plugins is up-to-date.
+    // Then create sim-host.js (if it is out-of-date) so it is ready when it is requested.
+    prepare.waitOnPrepare().then(function () {
+        return simFiles.createSimHostJsFile();
+    }).then(function () {
+        // Inject references to simulation HTML files
+        var panelsHtmlBasename = SIM_HOST_PANELS_HTML;
+        var dialogsHtmlBasename = SIM_HOST_DIALOGS_HTML;
+        var panelsHtml = [];
+        var dialogsHtml = [];
 
-    var pluginList = plugins.getPlugins();
-    Object.keys(pluginList).forEach(function (pluginId) {
-        var pluginPath = pluginList[pluginId];
-        if (pluginPath) {
-            var panelsHtmlFile = path.join(pluginPath, panelsHtmlBasename);
-            if (fs.existsSync(panelsHtmlFile)) {
-                panelsHtml.push(processPluginHtml(fs.readFileSync(panelsHtmlFile, 'utf8'), pluginId));
-            }
+        var pluginList = plugins.getPlugins();
 
-            var dialogsHtmlFile = path.join(pluginPath, dialogsHtmlBasename);
-            if (fs.existsSync(dialogsHtmlFile)) {
-                dialogsHtml.push(processPluginHtml(fs.readFileSync(dialogsHtmlFile, 'utf8'), pluginId));
+        Object.keys(pluginList).forEach(function (pluginId) {
+            var pluginPath = pluginList[pluginId];
+            if (pluginPath) {
+                var panelsHtmlFile = path.join(pluginPath, panelsHtmlBasename);
+                if (fs.existsSync(panelsHtmlFile)) {
+                    panelsHtml.push(processPluginHtml(fs.readFileSync(panelsHtmlFile, 'utf8'), pluginId));
+                }
+
+                var dialogsHtmlFile = path.join(pluginPath, dialogsHtmlBasename);
+                if (fs.existsSync(dialogsHtmlFile)) {
+                    dialogsHtml.push(processPluginHtml(fs.readFileSync(dialogsHtmlFile, 'utf8'), pluginId));
+                }
             }
-        }
-    });
-    cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
-        .pipe(replaceStream('<!-- PANELS -->', panelsHtml.join('\n')))
-        .pipe(replaceStream('<!-- DIALOGS -->', dialogsHtml.join('\n'))), true);
+        });
+
+        cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
+            .pipe(replaceStream('<!-- PANELS -->', panelsHtml.join('\n')))
+            .pipe(replaceStream('<!-- DIALOGS -->', dialogsHtml.join('\n'))), true);
+    }).done();
 }
 
 function processPluginHtml(html, pluginId) {
@@ -256,6 +204,5 @@ function streamSimHostCss(filePath, request, response) {
 
 module.exports = {
     handleUrlPath: handleUrlPath,
-    streamFile: streamFile,
-    init: init
+    streamFile: streamFile
 };

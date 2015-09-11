@@ -40,6 +40,10 @@ module.exports.initialize = function (pluginHandlers) {
             handler(success, failure, data.args);
         }
     });
+
+    socket.on('refresh', function () {
+        document.location.reload(true);
+    });
 };
 
 function getSuccess(index) {
