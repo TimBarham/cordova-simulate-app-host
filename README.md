@@ -36,6 +36,8 @@ npm install -g cordova-simulate
 
 
 # Usage
+
+## CLI
 From the command line anywhere within a Cordova project, enter the following:
 
 ```
@@ -44,10 +46,24 @@ simulate [<platform>] [--target=<browser>]
 
 Where:
 
-* **platform** is any Cordova platform that has been added to your project. If no platform is specified, the `browser`
-  platform will be used.
-* **browser** is the name of the browser to launch your app in. Can be any of the following: `chrome`, `chromium`, `edge`,
-  `firefox`, `ie`, `opera`, `safari`.  
+* **platform** is any Cordova platform that has been added to your project. Defaults to `browser`.
+* **browser** is the name of the browser to launch your app in. Can be any of the following: `chrome`, `chromium`, `edge`, `firefox`, `ie`, `opera`, `safari`. Defaults to `chrome`. 
+
+## API
+You can also `require('cordova-simulate')` and launch a simulation via the API:
+
+```JavaScript
+var simulate = require('cordova-simulate');
+simulate(opts);
+```
+
+Where opts is an object with the following properties (all optional):
+
+* **platform** - any Cordova platform that has been added to your project. Defaults to `browser`.
+* **target** - the name of the browser to launch your app in. Can be any of the following: `chrome`, `chromium`, `edge`, `firefox`, `ie`, `opera`, `safari`. Defaults to `chrome`.
+* **port** - the desired port for the server to use. Defaults to `8000`.
+* **dir** - the directory to launch from (where it should look for a Cordova project). Defaults to cwd.
+
 
 # What it does
 
@@ -56,6 +72,7 @@ Cordova simulate will launch your app in the browser, and open a second browser 
 This preview version currently includes built-in support for the following Cordova plugins:
 
 * [cordova-plugin-camera](https://github.com/apache/cordova-plugin-camera)
+* [cordova-plugin-console](https://github.com/apache/cordova-plugin-console)
 * [cordova-plugin-contacts](https://github.com/apache/cordova-plugin-contacts)
 * [cordova-plugin-device](https://github.com/apache/cordova-plugin-device)
 * [cordova-plugin-device-motion](https://github.com/apache/cordova-plugin-device-motion)

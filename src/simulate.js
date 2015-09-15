@@ -27,18 +27,19 @@ var Q = require('q'),
     simSocket = require('./server/socket'),
     plugins = require('./server/plugins');
 
-module.exports = function (args) {
+module.exports = function (opts) {
     var server,
         appUrl,
         simHostUrl;
 
-    args = processArgs(args);
-    var platform = args.platform;
-    var target = args.target;
+    var platform = opts.platform || 'browser';
+    var target = opts.target || 'chrome';
 
     config.platform = platform;
 
     return cordovaServe.servePlatform(platform, {
+        port: opts.port,
+        root: opts.dir,
         noServerInfo: true,
         urlPathHandler: simServer.handleUrlPath,
         streamHandler: simServer.streamFile,
@@ -78,32 +79,4 @@ function parseStartPage(projectRoot) {
     }
 
     return 'index.html'; // default uri
-}
-
-function processArgs(args) {
-    var platform = null;
-    var target = null;
-
-    args.shift(); // Remove 'node'
-    args.shift(); // Remove 'simulate'
-
-    args.forEach(function (arg) {
-        arg = arg.toLowerCase();
-        if (arg.indexOf('--target=') === 0) {
-            if (target) {
-                throw new Error('Target defined more than once');
-            }
-            target = arg.substring(9);
-        } else {
-            if (platform) {
-                throw new Error('Too many arguments');
-            }
-            platform = arg;
-        }
-    });
-
-    return {
-        platform: platform || 'browser',
-        target: target || 'chrome'
-    };
 }

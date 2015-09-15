@@ -5,6 +5,7 @@
   "bin": {
     "simulate": "./bin/simulate"
   },
+  "main": "src/simulate.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/TimBarham/cordova-simulate.git"
