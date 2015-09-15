@@ -19,7 +19,8 @@
 
 var fs = require('fs'),
     path = require('path'),
-    config = require('./config');
+    config = require('./config'),
+    dirs = require('./dirs');
 
 var pluginSimulationFiles = require('./plugin-files');
 
@@ -60,7 +61,7 @@ function initPlugins() {
  */
 function addPlatformDefaultHandlers() {
     var platform = config.platform;
-    var platformScriptsRoot = path.join(__dirname, 'platforms', platform);
+    var platformScriptsRoot = path.join(dirs.platforms, platform);
     if (fs.existsSync(platformScriptsRoot)) {
         var pluginId = platform + '-platform-core';
         plugins[pluginId] = platformScriptsRoot;
@@ -87,7 +88,7 @@ function findPluginSourceFilePath(projectRoot, pluginId, file) {
         return pluginPath;
     }
 
-    pluginPath = path.join(__dirname, 'plugins', pluginId);
+    pluginPath = path.join(dirs.plugins, pluginId);
     pluginFilePath = path.join(pluginPath, file);
     if (fs.existsSync(pluginFilePath)) {
         return pluginPath;

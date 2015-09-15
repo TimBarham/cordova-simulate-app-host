@@ -22,6 +22,7 @@ var fs = require('fs'),
     replaceStream = require('replacestream'),
     cordovaServe = require('cordova-serve'),
     Q = require('q'),
+    dirs = require('./dirs'),
     plugins = require('./plugins'),
     prepare = require('./prepare'),
     simFiles = require('./sim-files'),
@@ -42,7 +43,7 @@ function handleUrlPath(urlPath, request, response, do302, do404, serveFile) {
 function getFileToServe(urlPath) {
     if (urlPath.indexOf('/node_modules/') === 0) {
         // Something in our node_modules...
-        return path.resolve(__dirname, '..', urlPath.substr(1));
+        return path.resolve(dirs.root, urlPath.substr(1));
     }
 
     if (urlPath.indexOf('/simulator/') !== 0) {
@@ -64,7 +65,7 @@ function getFileToServe(urlPath) {
             }
             return appHostJsFile;
         }
-        return path.join(__dirname, splitPath.join('/'));
+        return path.join(dirs.root, splitPath.join('/'));
     }
 
     if (splitPath[0] === 'plugin') {
@@ -90,7 +91,7 @@ function getFileToServe(urlPath) {
         // Allow 'index.html' as a synonym for 'sim-host.html'
         filePath = 'sim-host.html';
     }
-    return path.join(__dirname, 'sim-host', filePath);
+    return path.join(dirs.root, 'sim-host', filePath);
 }
 
 function streamFile(filePath, request, response) {

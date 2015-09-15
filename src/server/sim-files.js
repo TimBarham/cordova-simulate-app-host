@@ -23,6 +23,7 @@ var browserify = require('browserify'),
     Q = require('q'),
     through = require('through2'),
     config = require('./config'),
+    dirs = require('./dirs'),
     log = require('./log'),
     plugins = require('./plugins'),
     prepare = require('./prepare'),
@@ -112,7 +113,7 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
         return Q.when(pluginList);
     }
 
-    var filePath = path.join(__dirname, hostBaseName, hostBaseName + '.js');
+    var filePath = path.join(dirs.root, hostBaseName, hostBaseName + '.js');
     log.log('Creating ' + hostBaseName + '.js');
 
     var scriptDefs = createScriptDefs(hostType, scriptTypes);
@@ -192,8 +193,8 @@ var _browserifySearchPaths = null;
 function getBrowserifySearchPaths(hostType) {
     if (!_browserifySearchPaths) {
         _browserifySearchPaths = {};
-        _browserifySearchPaths[appHost] = [path.join(__dirname, 'modules', 'app-host'), path.join(__dirname, 'modules', 'common'), path.join(__dirname, 'third-party')];
-        _browserifySearchPaths[simHost] = [path.join(__dirname, 'modules', 'sim-host'), path.join(__dirname, 'modules', 'common'), path.join(__dirname, 'third-party')];
+        _browserifySearchPaths[appHost] = [dirs.modules['app-host'], dirs.modules['common'], dirs.thirdParty];
+        _browserifySearchPaths[simHost] = [dirs.modules['sim-host'], dirs.modules['common'], dirs.thirdParty];
     }
 
     return hostType ? _browserifySearchPaths[hostType] : _browserifySearchPaths;

@@ -21,11 +21,11 @@ var Q = require('q'),
     fs = require('fs'),
     cordovaServe = require('cordova-serve'),
     path = require('path'),
-    config = require('./config'),
-    log = require('./log'),
-    simServer = require('./server'),
-    simSocket = require('./socket'),
-    plugins = require('./plugins');
+    config = require('./server/config'),
+    log = require('./server/log'),
+    simServer = require('./server/server'),
+    simSocket = require('./server/socket'),
+    plugins = require('./server/plugins');
 
 module.exports = function (args) {
     var server,
