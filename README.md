@@ -77,6 +77,7 @@ This preview version currently includes built-in support for the following Cordo
 * [cordova-plugin-device](https://github.com/apache/cordova-plugin-device)
 * [cordova-plugin-device-motion](https://github.com/apache/cordova-plugin-device-motion)
 * [cordova-plugin-dialogs](https://github.com/apache/cordova-plugin-dialogs)
+* [cordova-plugin-file](https://github.com/apache/cordova-plugin-file)
 * [cordova-plugin-geolocation](https://github.com/apache/cordova-plugin-geolocation)
 * [cordova-plugin-globalization](https://github.com/apache/cordova-plugin-globalization)
 * [cordova-plugin-media](https://github.com/apache/cordova-plugin-media)
