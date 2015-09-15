@@ -33,8 +33,8 @@ var pluginSimulationFiles = require('./plugin-files');
 
 var hostJsFiles = {};
 var builtOnce = {};
-var simHost = 'SIM-HOST';
-var appHost = 'APP-HOST';
+var simHost = 'sim-host';
+var appHost = 'app-host';
 
 function loadJsonFile(file) {
     return JSON.parse(fs.readFileSync(file).toString());
@@ -44,7 +44,7 @@ function createSimHostJsFile() {
     // Don't create sim-host.js until we've created app-host.js at least once, so we know we're working with the same
     // list of plugins.
     return waitOnAppHostJs().then(function (appHostPlugins) {
-        return createHostJsFile(simHost, ['JS', 'HANDLERS'], appHostPlugins);
+        return createHostJsFile(simHost, ['js', 'handlers'], appHostPlugins);
     });
 }
 
@@ -70,7 +70,7 @@ function waitOnAppHostJs() {
 var appHostJsPromise;
 function createAppHostJsFile() {
     appHostJsPromise = appHostJsPromise || prepare.waitOnPrepare().then(function () {
-            return createHostJsFile(appHost, ['JS', 'HANDLERS', 'CLOBBERS'])
+            return createHostJsFile(appHost, ['js', 'handlers', 'clobbers'])
         }).then(function (pluginList) {
             appHostJsPromise = null;
             return pluginList;
@@ -80,8 +80,7 @@ function createAppHostJsFile() {
 }
 
 function validatePlugins(hostType, pluginList) {
-    var hostBaseName = hostType.toLowerCase();
-    var jsonFile = path.join(config.simulationFilePath, hostBaseName + '.json');
+    var jsonFile = path.join(config.simulationFilePath, hostType + '.json');
     if (!fs.existsSync(jsonFile)) {
         return false;
     }
@@ -98,9 +97,8 @@ function validatePlugins(hostType, pluginList) {
 }
 
 function createHostJsFile(hostType, scriptTypes, pluginList) {
-    var hostBaseName = hostType.toLowerCase();
     var outputFile = getHostJsFile(hostType);
-    var jsonFile = path.join(config.simulationFilePath, hostBaseName + '.json');
+    var jsonFile = path.join(config.simulationFilePath, hostType + '.json');
 
     pluginList = pluginList || plugins.getPlugins();
 
@@ -108,13 +106,13 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
     // list of plugins has changed, or the directory where a plugin's simulation definition lives has changed, we need
     // to force a refresh.
     if (fs.existsSync(outputFile) && validatePlugins(hostType, pluginList)) {
-        log.log('Creating ' + hostBaseName + '.js: Existing file found and is up-to-date.');
+        log.log('Creating ' + hostType + '.js: Existing file found and is up-to-date.');
         builtOnce[hostType] = true;
         return Q.when(pluginList);
     }
 
-    var filePath = path.join(dirs.root, hostBaseName, hostBaseName + '.js');
-    log.log('Creating ' + hostBaseName + '.js');
+    var filePath = path.join(dirs.root, hostType, hostType + '.js');
+    log.log('Creating ' + hostType + '.js');
 
     var scriptDefs = createScriptDefs(hostType, scriptTypes);
 
@@ -193,8 +191,8 @@ var _browserifySearchPaths = null;
 function getBrowserifySearchPaths(hostType) {
     if (!_browserifySearchPaths) {
         _browserifySearchPaths = {};
-        _browserifySearchPaths[appHost] = [dirs.modules['app-host'], dirs.modules['common'], dirs.thirdParty];
-        _browserifySearchPaths[simHost] = [dirs.modules['sim-host'], dirs.modules['common'], dirs.thirdParty];
+        _browserifySearchPaths[appHost] = [dirs.modules[appHost], dirs.modules['common'], dirs.thirdParty];
+        _browserifySearchPaths[simHost] = [dirs.modules[simHost], dirs.modules['common'], dirs.thirdParty];
     }
 
     return hostType ? _browserifySearchPaths[hostType] : _browserifySearchPaths;
@@ -204,21 +202,20 @@ function createScriptDefs(hostType, scriptTypes) {
     return scriptTypes.map(function (scriptType) {
         return {
             comment: {
-                'JS': '/** PLUGINS **/',
-                'HANDLERS': '/** PLUGIN-HANDLERS **/',
-                'CLOBBERS': '/** PLUGIN-CLOBBERS **/'
+                'js': '/** PLUGINS **/',
+                'handlers': '/** PLUGIN-HANDLERS **/',
+                'clobbers': '/** PLUGIN-CLOBBERS **/'
             }[scriptType],
             exposeId: {
-                'JS': '%PLUGINID%',
-                'HANDLERS': '%PLUGINID%-handlers',
-                'CLOBBERS': '%PLUGINID%-clobbers'
+                'js': '%PLUGINID%',
+                'handlers': '%PLUGINID%-handlers',
+                'clobbers': '%PLUGINID%-clobbers'
             }[scriptType],
             fileName: pluginSimulationFiles[hostType][scriptType],
             code: []
         };
     });
 }
-
 
 var _commonModules = null;
 function getCommonModules(hostType) {
@@ -270,7 +267,7 @@ function compareObjects(o1, o2) {
 
 function getHostJsFile(hostType) {
     if (!hostJsFiles[hostType]) {
-        hostJsFiles[hostType] = path.join(config.simulationFilePath, hostType.toLowerCase() + '.js');
+        hostJsFiles[hostType] = path.join(config.simulationFilePath, hostType + '.js');
     }
     return hostJsFiles[hostType];
 }

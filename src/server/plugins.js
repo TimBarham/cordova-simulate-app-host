@@ -70,7 +70,7 @@ function addPlatformDefaultHandlers() {
 
 function findPluginPath(projectRoot, pluginId, hostType) {
     if (!hostType) {
-        return findPluginPath(projectRoot, pluginId, 'SIM-HOST') || findPluginPath(projectRoot, pluginId, 'APP-HOST');
+        return findPluginPath(projectRoot, pluginId, 'sim-host') || findPluginPath(projectRoot, pluginId, 'app-host');
     }
     for (var file in pluginSimulationFiles[hostType]) {
         var pluginFilePath = findPluginSourceFilePath(projectRoot, pluginId, pluginSimulationFiles[hostType][file]);

@@ -28,13 +28,12 @@ var fs = require('fs'),
     simFiles = require('./sim-files'),
     log = require('./log');
 
+var pluginSimulationFiles = require('./plugin-files');
+
 Q.onerror = function (error) {
     log.error(error);
 };
 Q.longStackSupport = true;
-
-var SIM_HOST_PANELS_HTML = 'sim-host-panels.html';
-var SIM_HOST_DIALOGS_HTML = 'sim-host-dialogs.html';
 
 function handleUrlPath(urlPath, request, response, do302, do404, serveFile) {
     serveFile(getFileToServe(urlPath));
@@ -43,7 +42,7 @@ function handleUrlPath(urlPath, request, response, do302, do404, serveFile) {
 function getFileToServe(urlPath) {
     if (urlPath.indexOf('/node_modules/') === 0) {
         // Something in our node_modules...
-        return path.resolve(dirs.root, urlPath.substr(1));
+        return path.resolve(dirs.root, '..', urlPath.substr(1));
     }
 
     if (urlPath.indexOf('/simulator/') !== 0) {
@@ -59,7 +58,7 @@ function getFileToServe(urlPath) {
 
     if (splitPath[0] === 'app-host') {
         if (splitPath[1] === 'app-host.js') {
-            var appHostJsFile = simFiles.getHostJsFile('APP-HOST');
+            var appHostJsFile = simFiles.getHostJsFile('app-host');
             if (!appHostJsFile) {
                 throw new Error('Path to app-host js file has not been set.');
             }
@@ -156,8 +155,8 @@ function streamSimHostHtml(filePath, request, response) {
         return simFiles.createSimHostJsFile();
     }).then(function () {
         // Inject references to simulation HTML files
-        var panelsHtmlBasename = SIM_HOST_PANELS_HTML;
-        var dialogsHtmlBasename = SIM_HOST_DIALOGS_HTML;
+        var panelsHtmlBasename = pluginSimulationFiles['sim-host']['panels'];
+        var dialogsHtmlBasename = pluginSimulationFiles['sim-host']['dialogs'];
         var panelsHtml = [];
         var dialogsHtml = [];
 

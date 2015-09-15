@@ -1,13 +1,13 @@
 {
-  "SIM-HOST": {
-    "PANELS": "sim-host-panels.html",
-    "DIALOGS": "sim-host-dialogs.html",
-    "JS": "sim-host.js",
-    "HANDLERS": "sim-host-handlers.js"
+  "sim-host": {
+    "panels": "sim-host-panels.html",
+    "dialogs": "sim-host-dialogs.html",
+    "js": "sim-host.js",
+    "handlers": "sim-host-handlers.js"
   },
-  "APP-HOST": {
-    "JS": "app-host.js",
-    "HANDLERS": "app-host-handlers.js",
-    "CLOBBERS": "app-host-clobbers.js"
+  "app-host": {
+    "js": "app-host.js",
+    "handlers": "app-host-handlers.js",
+    "clobbers": "app-host-clobbers.js"
   }
 }

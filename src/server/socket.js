@@ -19,8 +19,8 @@
 
 var log = require('./log');
 
-var appHost = 'APP-HOST';
-var simHost = 'SIM-HOST';
+var appHost = 'app-host';
+var simHost = 'sim-host';
 
 var hostSockets = {};
 var pendingEmits = {};
@@ -82,7 +82,7 @@ function init(server) {
 
 function handlePendingEmits(host) {
     pendingEmits[host].forEach(function (pendingEmit) {
-        log.log('Handling pending emit \'' + pendingEmit.msg + '\' to ' + host.toLowerCase());
+        log.log('Handling pending emit \'' + pendingEmit.msg + '\' to ' + host);
         emitToHost(host, pendingEmit.msg, pendingEmit.data, pendingEmit.callback);
     });
     pendingEmits[host] = [];
@@ -91,10 +91,10 @@ function handlePendingEmits(host) {
 function emitToHost(host, msg, data, callback) {
     var socket = hostSockets[host];
     if (socket) {
-        log.log('Emitting \'' + msg + '\' to ' + host.toLowerCase());
+        log.log('Emitting \'' + msg + '\' to ' + host);
         socket.emit(msg, data, callback);
     } else {
-        log.log('Emitting \'' + msg + '\' to ' + host.toLowerCase() + ' (pending connection)');
+        log.log('Emitting \'' + msg + '\' to ' + host + ' (pending connection)');
         pendingEmits[host].push({msg: msg, data: data, callback: callback});
     }
 }
