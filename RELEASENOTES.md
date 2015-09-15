@@ -21,6 +21,14 @@
 
 # Cordova-simulate Release Notes
 
+### 0.1.6 (Sept 15, 2015)
+* Added API support ([f288b180](https://github.com/timbarham/cordova-simulate/commit/f288b180)).
+* Moved server related files to separate folder ([2170a1bf](https://github.com/timbarham/cordova-simulate/commit/2170a1bf)).
+* Added support for Console plugin ([b5ca9f4d](https://github.com/timbarham/cordova-simulate/commit/b5ca9f4d)).
+* Added executable bit to simulate command ([4f173c68](https://github.com/timbarham/cordova-simulate/commit/4f173c68)).
+* Prepares and rebuilds files on demand when required ([4f1831e4](https://github.com/timbarham/cordova-simulate/commit/4f1831e4)).
+* Added support for File plugin ([2b0c147f](https://github.com/timbarham/cordova-simulate/commit/2b0c147f)).
+
 ### 0.1.5 (Aug 26, 2015)
 * Fix problem when running cordova-simulate from package (via `npm install`) rather than local git clone ([4ed4ae80](https://github.com/timbarham/cordova-simulate/commit/4ed4ae80)).
 
