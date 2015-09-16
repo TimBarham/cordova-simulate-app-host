@@ -21,6 +21,9 @@
 
 # Cordova-simulate Release Notes
 
+### 0.1.8 (Sept 16, 2015)
+* Fixed issues with shrinkwrap file ([3d260689](https://github.com/timbarham/cordova-simulate/commit/3d260689)).
+
 ### 0.1.7 (Sept 16, 2015)
 * Add shrinkwrap to prevent install of optional native dependencies ([bfe47f31](https://github.com/timbarham/cordova-simulate/commit/bfe47f31)).
 

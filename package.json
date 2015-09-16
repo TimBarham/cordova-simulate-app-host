@@ -1,6 +1,6 @@
 {
   "name": "cordova-simulate",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "A browser based plugin simulation tool to aid development and testing of Cordova applications.",
   "bin": {
     "simulate": "./bin/simulate"
