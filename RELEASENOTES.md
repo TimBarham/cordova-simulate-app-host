@@ -21,6 +21,9 @@
 
 # Cordova-simulate Release Notes
 
+### 0.1.7 (Sept 16, 2015)
+* Add shrinkwrap to prevent install of optional native dependencies ([bfe47f31](https://github.com/timbarham/cordova-simulate/commit/bfe47f31)).
+
 ### 0.1.6 (Sept 15, 2015)
 * Added API support ([f288b180](https://github.com/timbarham/cordova-simulate/commit/f288b180)).
 * Moved server related files to separate folder ([2170a1bf](https://github.com/timbarham/cordova-simulate/commit/2170a1bf)).
