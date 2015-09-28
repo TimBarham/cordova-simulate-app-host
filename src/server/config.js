@@ -56,6 +56,14 @@ Object.defineProperties(module.exports, {
             setValue('server', value);
         }
     },
+    simHostOptions: {
+        get: function () {
+            return getValue('simHostOptions');
+        },
+        set: function (value) {
+            setValue('simHostOptions', value);
+        }
+    },
     simulationFilePath: {
         get: function () {
             if (!simulationFilePath) {

@@ -44,7 +44,11 @@ function createSimHostJsFile() {
     // Don't create sim-host.js until we've created app-host.js at least once, so we know we're working with the same
     // list of plugins.
     return waitOnAppHostJs().then(function (appHostPlugins) {
-        return createHostJsFile(simHost, ['js', 'handlers'], appHostPlugins);
+        try {
+            return createHostJsFile(simHost, ['js', 'handlers'], appHostPlugins);
+        } catch (e) {
+            console.log('ERROR CREATING SIM-HOST.JS:\n' + e.stack);
+        }
     });
 }
 
@@ -111,7 +115,7 @@ function createHostJsFile(hostType, scriptTypes, pluginList) {
         return Q.when(pluginList);
     }
 
-    var filePath = path.join(dirs.root, hostType, hostType + '.js');
+    var filePath = path.join(dirs.hostRoot[hostType], hostType + '.js');
     log.log('Creating ' + hostType + '.js');
 
     var scriptDefs = createScriptDefs(hostType, scriptTypes);
@@ -191,7 +195,7 @@ var _browserifySearchPaths = null;
 function getBrowserifySearchPaths(hostType) {
     if (!_browserifySearchPaths) {
         _browserifySearchPaths = {};
-        _browserifySearchPaths[appHost] = [dirs.modules[appHost], dirs.modules['common'], dirs.thirdParty];
+        _browserifySearchPaths[appHost] = [dirs.modules['common'], dirs.thirdParty];
         _browserifySearchPaths[simHost] = [dirs.modules[simHost], dirs.modules['common'], dirs.thirdParty];
     }
 

@@ -22,6 +22,9 @@ var fs = require('fs'),
     replaceStream = require('replacestream'),
     cordovaServe = require('cordova-serve'),
     Q = require('q'),
+    send = require('send'),
+    url = require('url'),
+    config = require('./config'),
     dirs = require('./dirs'),
     plugins = require('./plugins'),
     prepare = require('./prepare'),
@@ -35,93 +38,38 @@ Q.onerror = function (error) {
 };
 Q.longStackSupport = true;
 
-function handleUrlPath(urlPath, request, response, do302, do404, serveFile) {
-    serveFile(getFileToServe(urlPath));
+function getRouter() {
+    var router = cordovaServe.Router();
+
+    if (config.simHostOptions.populateRouter) {
+        config.simHostOptions.populateRouter(router);
+    }
+
+    router.use('/node_modules', cordovaServe.static(path.resolve(dirs.root, '..', 'node_modules')));
+    router.get('/simulator/', streamSimHostHtml);
+    router.get('/simulator/*.html', streamSimHostHtml);
+    router.get('/', streamAppHostHtml);
+    router.get('/*.html', streamAppHostHtml);
+    router.get('/simulator/app-host.js', function (request, response) {
+        sendHostJsFile(response, 'app-host');
+    });
+    router.get('/simulator/sim-host.js', function (request, response) {
+        sendHostJsFile(response, 'sim-host');
+    });
+    router.use(plugins.getRouter());
+    router.use('/simulator', cordovaServe.static(dirs.hostRoot['sim-host']));
+    return router;
 }
 
-function getFileToServe(urlPath) {
-    if (urlPath.indexOf('/node_modules/') === 0) {
-        // Something in our node_modules...
-        return path.resolve(dirs.root, '..', urlPath.substr(1));
+function sendHostJsFile(response, hostType) {
+    var hostJsFile = simFiles.getHostJsFile(hostType);
+    if (!hostJsFile) {
+        throw new Error('Path to ' + hostType + '.js has not been set.');
     }
-
-    if (urlPath.indexOf('/simulator/') !== 0) {
-        // Not a path we care about
-        return null;
-    }
-
-    var splitPath = urlPath.split('/');
-
-    // Remove the empty first element and 'simulator'
-    splitPath.shift();
-    splitPath.shift();
-
-    if (splitPath[0] === 'app-host') {
-        if (splitPath[1] === 'app-host.js') {
-            var appHostJsFile = simFiles.getHostJsFile('app-host');
-            if (!appHostJsFile) {
-                throw new Error('Path to app-host js file has not been set.');
-            }
-            return appHostJsFile;
-        }
-        return path.join(dirs.root, splitPath.join('/'));
-    }
-
-    if (splitPath[0] === 'plugin') {
-        // Remove 'plugin'
-        splitPath.shift();
-
-        var pluginId = splitPath.shift();
-        var pluginPath = plugins.getPlugins()[pluginId];
-        return pluginPath && path.join(pluginPath, splitPath.join('/'));
-    }
-
-    var filePath = splitPath.join('/');
-
-    if (filePath === 'sim-host.js') {
-        var simHostJsFile = simFiles.getHostJsFile('SIM-HOST');
-        if (!simHostJsFile) {
-            throw new Error('Path to sim-host js file has not been set.');
-        }
-        return simHostJsFile;
-    }
-
-    if (filePath === 'index.html') {
-        // Allow 'index.html' as a synonym for 'sim-host.html'
-        filePath = 'sim-host.html';
-    }
-    return path.join(dirs.root, 'sim-host', filePath);
+    response.sendFile(hostJsFile);
 }
 
-function streamFile(filePath, request, response) {
-    if (request.url === '/simulator/index.html' || request.url === '/simulator/sim-host.html') {
-        streamSimHostHtml(filePath, request, response);
-        return true;
-    }
-
-    // Checking if request url ends with .html (5 is the length of '.html') or request url is '/'
-    // to inject plugin simulation app-host <script> references into any html page inside the app
-    if (request.url === '/' || request.url.indexOf('.html', request.url.length - 5) !== -1) {
-        streamAppHostHtml(filePath, request, response);
-        return true;
-    }
-
-    if (request.url === '/simulator/sim-host.css') {
-        // If target browser isn't Chrome (user agent contains 'Chrome', but isn't 'Edge'), remove shadow dom stuff from
-        // the CSS file.
-        var userAgent = request.headers['user-agent'];
-        var isChrome = userAgent.indexOf('Chrome') > -1 && userAgent.indexOf('Edge/') === -1;
-        if (!isChrome) {
-            streamSimHostCss(filePath, request, response);
-            return true;
-        }
-    }
-
-    cordovaServe.sendStream(filePath, request, response, null, true);
-    return true;
-}
-
-function streamAppHostHtml(filePath, request, response) {
+function streamAppHostHtml(request, response) {
     // Always prepare before serving up app HTML file, so app is up-to-date, then create the app-host.js (if it is
     // out-of-date) so it is ready when it is requested.
     prepare.prepare().then(function () {
@@ -131,10 +79,11 @@ function streamAppHostHtml(filePath, request, response) {
         simFiles.validateSimHostPlugins(pluginList);
 
         // Inject plugin simulation app-host <script> references into *.html
+        var filePath = path.join(config.platformRoot, url.parse(request.url).pathname);
         log.log('Injecting app-host into ' + filePath);
         var scriptSources = [
             'https://cdn.socket.io/socket.io-1.2.0.js',
-            '/simulator/app-host/app-host.js'
+            '/simulator/app-host.js'
         ];
         var scriptTags = scriptSources.map(function (scriptSource) {
             return '<script src="' + scriptSource + '"></script>';
@@ -142,13 +91,17 @@ function streamAppHostHtml(filePath, request, response) {
 
         // Note we replace "default-src 'self'" with "default-src 'self' ws:" (in Content Security Policy) so that
         // websocket connections are allowed.
-        cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
-            .pipe(replaceStream(/<\s*head\s*>/, '<head>' + scriptTags))
-            .pipe(replaceStream('default-src \'self\'', 'default-src \'self\' ws: blob:')), true);
+        send(request, filePath, {
+            transform: function (stream) {
+                return stream
+                    .pipe(replaceStream(/<\s*head\s*>/, '<head>' + scriptTags))
+                    .pipe(replaceStream('default-src \'self\'', 'default-src \'self\' ws: blob:'));
+            }
+        }).pipe(response);
     }).done();
 }
 
-function streamSimHostHtml(filePath, request, response) {
+function streamSimHostHtml(request, response) {
     // If we haven't ever prepared, do so before we try to generate sim-host, so we know our list of plugins is up-to-date.
     // Then create sim-host.js (if it is out-of-date) so it is ready when it is requested.
     prepare.waitOnPrepare().then(function () {
@@ -177,9 +130,13 @@ function streamSimHostHtml(filePath, request, response) {
             }
         });
 
-        cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
-            .pipe(replaceStream('<!-- PANELS -->', panelsHtml.join('\n')))
-            .pipe(replaceStream('<!-- DIALOGS -->', dialogsHtml.join('\n'))), true);
+        send(request, path.join(dirs.hostRoot['sim-host'], 'sim-host.html'), {
+            transform: function (stream) {
+                return stream
+                    .pipe(replaceStream('<!-- PANELS -->', panelsHtml.join('\n')))
+                    .pipe(replaceStream('<!-- DIALOGS -->', dialogsHtml.join('\n')));
+            }
+        }).pipe(response);
     }).done();
 }
 
@@ -195,14 +152,6 @@ function processPluginHtml(html, pluginId) {
     });
 }
 
-function streamSimHostCss(filePath, request, response) {
-    // Replace '/deep/' combinator
-    cordovaServe.sendStream(filePath, request, response, fs.createReadStream(filePath)
-        .pipe(replaceStream('> ::content >', '>'))
-        .pipe(replaceStream(/\^|\/shadow\/|\/shadow-deep\/|::shadow|\/deep\/|::content|>>>/g, ' ')), true);
-}
-
 module.exports = {
-    handleUrlPath: handleUrlPath,
-    streamFile: streamFile
+    getRouter: getRouter
 };

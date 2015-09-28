@@ -19,6 +19,7 @@
 
 var fs = require('fs'),
     path = require('path'),
+    cordovaServe = require('cordova-serve'),
     config = require('./config'),
     dirs = require('./dirs');
 
@@ -26,6 +27,7 @@ var pluginSimulationFiles = require('./plugin-files');
 
 var plugins = {};
 
+var _router;
 function initPlugins() {
     // Always defined plugins
     var pluginList = ['exec', 'events'];
@@ -53,6 +55,16 @@ function initPlugins() {
     });
 
     addPlatformDefaultHandlers();
+    populateRouter();
+}
+
+function populateRouter() {
+    var router = getRouter();
+    router.stack = [];
+
+    Object.keys(plugins).forEach(function (plugin) {
+        router.use('/simulator/plugin/' + plugin, cordovaServe.static(plugins[plugin]));
+    });
 }
 
 /**
@@ -97,7 +109,13 @@ function findPluginSourceFilePath(projectRoot, pluginId, file) {
     return null;
 }
 
+function getRouter() {
+    _router = _router || cordovaServe.Router();
+    return _router;
+}
+
 module.exports.initPlugins = initPlugins;
+module.exports.getRouter = getRouter;
 module.exports.getPlugins = function () {
     return plugins
 };

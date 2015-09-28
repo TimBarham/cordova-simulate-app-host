@@ -17,17 +17,30 @@
  under the License.
  */
 
-var path = require('path');
+var path = require('path'),
+    config = require('./config');
 
 var rootPath = path.resolve(__dirname, '..');
-var modulesPath = path.join(rootPath, 'modules');
 
 module.exports.root = rootPath;
 module.exports.platforms = path.join(rootPath, 'platforms');
 module.exports.plugins = path.join(rootPath, 'plugins');
 module.exports.thirdParty = path.join(rootPath, 'third-party');
+
 module.exports.modules = {
-    'app-host': path.join(modulesPath, 'app-host'),
-    'sim-host': path.join(modulesPath, 'sim-host'),
-    'common': path.join(modulesPath, 'common')
+    'common': path.join(rootPath, 'modules')
 };
+Object.defineProperty(module.exports.modules, 'sim-host', {
+    get: function () {
+        return config.simHostOptions.modules;
+    }
+});
+
+module.exports.hostRoot = {
+    'app-host':  path.join(rootPath, 'app-host')
+};
+Object.defineProperty(module.exports.hostRoot, 'sim-host', {
+    get: function () {
+        return config.simHostOptions.simHostRoot;
+    }
+});

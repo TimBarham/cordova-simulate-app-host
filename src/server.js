@@ -27,7 +27,7 @@ var Q = require('q'),
     simSocket = require('./server/socket'),
     plugins = require('./server/plugins');
 
-module.exports = function (opts) {
+module.exports = function (opts, simHostOpts) {
     var server,
         appUrl,
         simHostUrl;
@@ -38,16 +38,17 @@ module.exports = function (opts) {
     var target = opts.target || 'chrome';
 
     config.platform = platform;
+    config.simHostOptions = simHostOpts || {};
 
     return cordovaServe.servePlatform(platform, {
         port: opts.port,
         root: opts.dir,
         noServerInfo: true,
-        urlPathHandler: simServer.handleUrlPath,
-        streamHandler: simServer.streamFile,
-        serverExtender: simSocket.init
+        router: simServer.getRouter()
     }).then(function (serverInfo) {
-        config.server = serverInfo.server;
+        var server = serverInfo.server;
+        simSocket.init(server);
+        config.server = server;
         var projectRoot = serverInfo.projectRoot;
         config.projectRoot = projectRoot;
         config.platformRoot = serverInfo.platformRoot;
@@ -82,3 +83,5 @@ function parseStartPage(projectRoot) {
 
     return 'index.html'; // default uri
 }
+
+module.exports.dirs = require('./server/dirs');

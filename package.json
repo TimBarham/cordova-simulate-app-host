@@ -1,14 +1,11 @@
 {
-  "name": "cordova-simulate",
-  "version": "0.1.8",
-  "description": "A browser based plugin simulation tool to aid development and testing of Cordova applications.",
-  "bin": {
-    "simulate": "./bin/simulate"
-  },
-  "main": "src/simulate.js",
+  "name": "cordova-simulate-server",
+  "version": "0.1.0",
+  "description": "Server and app host module for Cordova plugin simulation.",
+  "main": "src/server.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TimBarham/cordova-simulate.git"
+    "url": "https://github.com/TimBarham/cordova-simulator-server.git"
   },
   "keywords": [
     "cordova",
@@ -18,22 +15,22 @@
   "author": "Tim Barham",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/TimBarham/cordova-simulate/issues"
+    "url": "https://github.com/TimBarham/cordova-simulator-server/issues"
   },
-  "homepage": "https://github.com/TimBarham/cordova-simulate",
-  "dependencies": {
-    "browserify": "^10.2.4",
-    "chalk": "^1.1.1",
-    "combined-stream": "^1.0.3",
-    "cordova-serve": "^0.1.3",
-    "q": "^1.4.1",
-    "replacestream": "^2.1.0",
-    "socket.io": "^1.3.5",
-    "through2": "^2.0.0",
-    "webcomponents.js": "^0.7.2"
-  },
+  "homepage": "https://github.com/TimBarham/cordova-simulator-server",
   "engines": {
     "node": ">= 0.12.0",
     "npm": ">= 2.5.1"
+  },
+  "dependencies": {
+    "browserify": "^11.2.0",
+    "chalk": "^1.1.1",
+    "cordova-serve": "^0.1.3",
+    "q": "^1.4.1",
+    "replacestream": "^4.0.0",
+    "send": "timbarham/send",
+    "socket.io": "^1.3.7",
+    "through2": "^2.0.0",
+    "webcomponents.js": "^0.7.2"
   }
 }
