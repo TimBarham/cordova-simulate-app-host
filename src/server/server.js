@@ -38,27 +38,20 @@ Q.onerror = function (error) {
 };
 Q.longStackSupport = true;
 
-function getRouter() {
-    var router = cordovaServe.Router();
-
-    if (config.simHostOptions.populateRouter) {
-        config.simHostOptions.populateRouter(router);
-    }
-
-    router.use('/node_modules', cordovaServe.static(path.resolve(dirs.root, '..', 'node_modules')));
-    router.get('/simulator/', streamSimHostHtml);
-    router.get('/simulator/*.html', streamSimHostHtml);
-    router.get('/', streamAppHostHtml);
-    router.get('/*.html', streamAppHostHtml);
-    router.get('/simulator/app-host.js', function (request, response) {
+function attach(app) {
+    app.use('/node_modules', cordovaServe.static(path.resolve(dirs.root, '..', 'node_modules')));
+    app.get('/simulator/', streamSimHostHtml);
+    app.get('/simulator/*.html', streamSimHostHtml);
+    app.get('/', streamAppHostHtml);
+    app.get('/*.html', streamAppHostHtml);
+    app.get('/simulator/app-host.js', function (request, response) {
         sendHostJsFile(response, 'app-host');
     });
-    router.get('/simulator/sim-host.js', function (request, response) {
+    app.get('/simulator/sim-host.js', function (request, response) {
         sendHostJsFile(response, 'sim-host');
     });
-    router.use(plugins.getRouter());
-    router.use('/simulator', cordovaServe.static(dirs.hostRoot['sim-host']));
-    return router;
+    app.use(plugins.getRouter());
+    app.use('/simulator', cordovaServe.static(dirs.hostRoot['sim-host']));
 }
 
 function sendHostJsFile(response, hostType) {
@@ -153,5 +146,5 @@ function processPluginHtml(html, pluginId) {
 }
 
 module.exports = {
-    getRouter: getRouter
+    attach: attach
 };

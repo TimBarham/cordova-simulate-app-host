@@ -27,9 +27,10 @@ var Q = require('q'),
     simSocket = require('./server/socket'),
     plugins = require('./server/plugins');
 
+var server = cordovaServe();
+
 module.exports = function (opts, simHostOpts) {
-    var server,
-        appUrl,
+    var appUrl,
         simHostUrl;
 
     opts = opts || {};
@@ -40,19 +41,19 @@ module.exports = function (opts, simHostOpts) {
     config.platform = platform;
     config.simHostOptions = simHostOpts || {};
 
-    return cordovaServe.servePlatform(platform, {
+    simServer.attach(server.app);
+
+    return server.servePlatform(platform, {
         port: opts.port,
         root: opts.dir,
-        noServerInfo: true,
-        router: simServer.getRouter()
-    }).then(function (serverInfo) {
-        var server = serverInfo.server;
-        simSocket.init(server);
-        config.server = server;
-        var projectRoot = serverInfo.projectRoot;
+        noServerInfo: true
+    }).then(function () {
+        simSocket.init(server.server);
+        config.server = server.server;
+        var projectRoot = server.projectRoot;
         config.projectRoot = projectRoot;
-        config.platformRoot = serverInfo.platformRoot;
-        var urlRoot = 'http://localhost:' + serverInfo.port + '/';
+        config.platformRoot = server.root;
+        var urlRoot = 'http://localhost:' + server.port + '/';
         appUrl = urlRoot +  parseStartPage(projectRoot);
         simHostUrl = urlRoot + 'simulator/index.html';
         log.log('Server started:\n- App running at: ' + appUrl + '\n- Sim host running at: ' + simHostUrl);
@@ -85,3 +86,4 @@ function parseStartPage(projectRoot) {
 }
 
 module.exports.dirs = require('./server/dirs');
+module.exports.app = server.app;
