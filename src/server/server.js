@@ -39,7 +39,9 @@ Q.onerror = function (error) {
 Q.longStackSupport = true;
 
 function attach(app) {
-    app.use('/node_modules', cordovaServe.static(path.resolve(dirs.root, '..', 'node_modules')));
+    dirs.node_modules.forEach(function (dir) {
+        app.use('/node_modules', cordovaServe.static(dir));
+    });
     app.get('/simulator/', streamSimHostHtml);
     app.get('/simulator/*.html', streamSimHostHtml);
     app.get('/', streamAppHostHtml);
@@ -83,7 +85,7 @@ function streamAppHostHtml(request, response) {
         }).join('');
 
         // Note we replace "default-src 'self'" with "default-src 'self' ws:" (in Content Security Policy) so that
-        // websocket connections are allowed.
+        // websocket connections are allowed (this relies on a custom version of send that supports a 'transform' option).
         send(request, filePath, {
             transform: function (stream) {
                 return stream
@@ -123,6 +125,7 @@ function streamSimHostHtml(request, response) {
             }
         });
 
+        // Note that this relies on a custom version of send that supports a 'transform' option.
         send(request, path.join(dirs.hostRoot['sim-host'], 'sim-host.html'), {
             transform: function (stream) {
                 return stream

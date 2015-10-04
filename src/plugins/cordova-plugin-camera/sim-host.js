@@ -19,7 +19,7 @@
  *
  */
 
-var cordova = require('cordova');
+var dialog = require('dialog');
 
 module.exports = function (messages) {
     var filenameInput, dialogFilenameInput, dialogImg;
@@ -28,16 +28,16 @@ module.exports = function (messages) {
         if (document.getElementById('camera-host').checked) {
             window.alert('Not supported');
         } else if (document.getElementById('camera-prompt').checked) {
-            cordova.showDialog('camera-choose-image', function (msg) {
+            dialog.showDialog('camera-choose-image', function (msg) {
                 if (msg === 'showing') {
                     // Not we use .onclick etc here rather than addEventListener() to ensure we replace any existing
                     // handler with one that uses the appropriate value of 'callback' from the current closure.
                     document.getElementById('camera-dialog-use-image').onclick = function () {
-                        cordova.hideDialog('camera-choose-image');
+                        dialog.hideDialog('camera-choose-image');
                         createArrayBuffer(dialogFilenameInput, callback);
                     };
                     document.getElementById('camera-dialog-cancel').onclick = function () {
-                        cordova.hideDialog('camera-choose-image');
+                        dialog.hideDialog('camera-choose-image');
                         callback(null, null);
                     };
                 }

@@ -19,8 +19,6 @@
  *
  */
 
-var cordova = require('cordova');
-
 function initialize() {
     var devices = [
         {

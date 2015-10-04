@@ -20,7 +20,7 @@
  */
 
 var savedSims = require('./saved-sims');
-var cordova = require('cordova');
+var dialog = require('dialog');
 
 // Handle any calls not handled by anything else...
 module.exports = {
@@ -32,7 +32,7 @@ module.exports = {
             }
 
             // Otherwise show the dialog
-            cordova.showDialog('exec-dialog', function (msg) {
+            dialog.showDialog('exec-dialog', function (msg) {
                 if (msg === 'query-show') {
                     // Display of the dialog was delayed for some reason. Check if in the meantime we have a saved value
                     // for this call.
@@ -67,7 +67,7 @@ module.exports = {
                             return;
                         }
 
-                        cordova.hideDialog('exec-dialog');
+                        dialog.hideDialog('exec-dialog');
 
                         if (document.getElementById('exec-persist').checked) {
                             savedSims.addSim({service: service, action: action, args: args, value: result, success: isSuccess});
