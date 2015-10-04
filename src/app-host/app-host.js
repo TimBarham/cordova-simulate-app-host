@@ -76,7 +76,10 @@ function exec(success, fail, service, action, args) {
     // If we have a local handler, call that. Otherwise pass it to the simulation host.
     var handler = pluginHandlers[service] && pluginHandlers[service][action];
     if (handler) {
-        handler(success, fail, service, action, args);
+        // Ensure local handlers are executed asynchronously.
+        setTimeout(function () {
+            handler(success, fail, service, action, args);
+        }, 0);
     } else {
         var execIndex = nextExecCacheIndex++;
         execCache[execIndex] = {index: execIndex, success: success, fail: fail};
