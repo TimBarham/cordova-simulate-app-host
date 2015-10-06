@@ -1,6 +1,6 @@
 Server and app host support for cordova-simulate.
 
-#Installation
+# Installation
 
 ```
 npm install cordova-simulator-server
